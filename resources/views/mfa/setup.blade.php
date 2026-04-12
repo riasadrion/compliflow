@@ -133,6 +133,13 @@
 
         <button id="verify-btn" onclick="verifyCode()" disabled>Verify &amp; Enable MFA</button>
         <p class="error" id="error-msg"></p>
+
+        <form method="POST" action="/mfa/logout" style="margin-top: 20px; text-align: center;">
+            @csrf
+            <button type="submit" style="background: none; box-shadow: none; color: #9ca3af; font-size: 0.82rem; font-weight: 500; padding: 0; width: auto; letter-spacing: 0; cursor: pointer; border: none;">
+                Sign out
+            </button>
+        </form>
     </div>
 
     <script>

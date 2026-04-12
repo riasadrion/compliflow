@@ -55,11 +55,6 @@ class MfaController extends Controller
         $secret = Crypt::decryptString($user->mfa_secret_encrypted);
         $code   = $request->input('code');
 
-        // Prevent replay attacks — each code usable once
-        if ($user->mfa_code_used_at && $user->mfa_code_used_at->gt(now()->subSeconds(30))) {
-            return response()->json(['message' => 'Code already used. Please wait for the next code.'], 422);
-        }
-
         $valid = Google2FA::verifyKey($secret, $code);
 
         if (! $valid) {
@@ -70,11 +65,17 @@ class MfaController extends Controller
             return response()->json(['message' => 'Invalid MFA code.'], 422);
         }
 
-        // Mark MFA as enabled and record code use timestamp
+        // Prevent replay attacks — reject if this exact code was already used within its 30s window
+        if ($user->mfa_last_code === $code && $user->mfa_code_used_at && $user->mfa_code_used_at->gt(now()->subSeconds(30))) {
+            return response()->json(['message' => 'Code already used. Please wait for the next code.'], 422);
+        }
+
+        // Mark MFA as enabled and record code use
         $user->update([
             'mfa_enabled'      => true,
             'mfa_verified_at'  => now(),
             'mfa_code_used_at' => now(),
+            'mfa_last_code'    => $code,
         ]);
 
         // Set session flag — middleware checks this
@@ -104,17 +105,21 @@ class MfaController extends Controller
         $secret = Crypt::decryptString($user->mfa_secret_encrypted);
         $code   = $request->input('code');
 
-        if ($user->mfa_code_used_at && $user->mfa_code_used_at->gt(now()->subSeconds(30))) {
-            return response()->json(['message' => 'Code already used. Please wait for the next code.'], 422);
-        }
-
         $valid = Google2FA::verifyKey($secret, $code);
 
         if (! $valid) {
             return response()->json(['message' => 'Invalid MFA code.'], 422);
         }
 
-        $user->update(['mfa_code_used_at' => now()]);
+        // Prevent replay attacks — reject if this exact code was already used within its 30s window
+        if ($user->mfa_last_code === $code && $user->mfa_code_used_at && $user->mfa_code_used_at->gt(now()->subSeconds(30))) {
+            return response()->json(['message' => 'Code already used. Please wait for the next code.'], 422);
+        }
+
+        $user->update([
+            'mfa_code_used_at' => now(),
+            'mfa_last_code'    => $code,
+        ]);
 
         session([
             'mfa_verified_at'  => now()->timestamp,
