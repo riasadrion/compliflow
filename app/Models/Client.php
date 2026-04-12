@@ -13,6 +13,7 @@ class Client extends Model
 
     protected $fillable = [
         'crp_id',
+        'external_id',
         'first_name',
         'last_name',
         'dob',
