@@ -14,6 +14,12 @@ class MfaChallenge extends SimplePage
     public string $code = '';
     public ?string $errorMessage = null;
 
+    public function mount(): void
+    {
+        // If arriving here right after login, the session is fresh — this is expected.
+        // No action needed; the subheading explains what to do.
+    }
+
     public function verify(): void
     {
         $this->errorMessage = null;
@@ -62,6 +68,6 @@ public function getTitle(): string | Htmlable
 
     public function getSubheading(): string | Htmlable | null
     {
-        return 'Enter the 6-digit code from your authenticator app to continue.';
+        return 'Enter the 6-digit code from your authenticator app to continue. You must verify each time you sign in.';
     }
 }
