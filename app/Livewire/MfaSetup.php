@@ -6,22 +6,18 @@ use App\Services\CryptographicAuditService;
 use Filament\Pages\SimplePage;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Crypt;
+use Livewire\Component;
 use PragmaRX\Google2FALaravel\Facade as Google2FA;
 
-class MfaSetup extends SimplePage
+class MfaSetup extends Component
 {
-    protected string $view = 'livewire.mfa-setup';
-
     public ?string $qrCodeUrl = null;
     public ?string $secret = null;
     public string $code = '';
-    public ?string $errorMessage = null;
 
     public function mount(): void
     {
-        $user = auth()->user();
-
-        // Generate a new secret each time setup is loaded
+        $user   = auth()->user();
         $secret = Google2FA::generateSecretKey();
 
         $user->update([
@@ -36,8 +32,6 @@ class MfaSetup extends SimplePage
 
     public function verify(): void
     {
-        $this->errorMessage = null;
-
         $user   = auth()->user();
         $secret = Crypt::decryptString($user->mfa_secret_encrypted);
 
@@ -49,7 +43,6 @@ class MfaSetup extends SimplePage
             return;
         }
 
-        // Replay prevention
         if ($user->mfa_last_code === $this->code && $user->mfa_code_used_at && $user->mfa_code_used_at->gt(now()->subSeconds(30))) {
             $this->dispatch('mfa-error', 'Code already used. Please wait for the next code.');
             $this->code = '';
@@ -76,18 +69,9 @@ class MfaSetup extends SimplePage
         $this->js("setTimeout(() => window.location.href = '/admin', 700)");
     }
 
-public function getTitle(): string | Htmlable
+    public function render()
     {
-        return 'Set Up Two-Factor Authentication';
-    }
-
-    public function getHeading(): string | Htmlable | null
-    {
-        return 'Two-Factor Setup';
-    }
-
-    public function getSubheading(): string | Htmlable | null
-    {
-        return 'Scan the QR code with your authenticator app, then enter the 6-digit code to activate.';
+        return view('livewire.mfa-setup')
+            ->layout('filament-panels::components.layout.simple');
     }
 }
