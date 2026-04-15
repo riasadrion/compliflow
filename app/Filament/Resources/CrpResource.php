@@ -21,6 +21,8 @@ class CrpResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-office';
     protected static ?string $navigationLabel = 'CRPs';
+    protected static ?string $modelLabel = 'CRP';
+    protected static ?string $pluralModelLabel = 'CRPs';
     protected static string|\UnitEnum|null $navigationGroup = 'Super Admin';
     protected static ?int $navigationSort = 1;
 

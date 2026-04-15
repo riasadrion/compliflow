@@ -101,10 +101,11 @@ class UserResource extends Resource
                 TextColumn::make('role')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'admin'     => 'warning',
-                        'counselor' => 'info',
-                        'viewer'    => 'gray',
-                        default     => 'gray',
+                        'admin'            => 'warning',
+                        'senior_counselor' => 'success',
+                        'counselor'        => 'info',
+                        'readonly'         => 'gray',
+                        default            => 'gray',
                     }),
 
                 IconColumn::make('mfa_enabled')
@@ -127,9 +128,10 @@ class UserResource extends Resource
 
                 SelectFilter::make('role')
                     ->options([
-                        'admin'     => 'Admin',
-                        'counselor' => 'Counselor',
-                        'viewer'    => 'Viewer',
+                        'admin'            => 'CRP Admin',
+                        'senior_counselor' => 'Senior Counselor',
+                        'counselor'        => 'Counselor',
+                        'readonly'         => 'Read Only',
                     ]),
             ])
             ->actions([
