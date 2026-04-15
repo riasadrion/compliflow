@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Traits\BelongsToCrp;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Client extends Model
 {
-    use BelongsToCrp, SoftDeletes;
+    use BelongsToCrp, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'crp_id',

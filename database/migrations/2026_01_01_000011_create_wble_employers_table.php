@@ -29,9 +29,11 @@ return new class extends Migration
         });
 
         // Composite unique on wble_employers to support composite FKs downstream
-        DB::statement('
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('
             ALTER TABLE wble_employers ADD CONSTRAINT wble_employers_id_crp_unique UNIQUE (id, crp_id)
         ');
+        }
     }
 
     public function down(): void

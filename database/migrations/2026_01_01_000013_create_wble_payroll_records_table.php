@@ -48,21 +48,25 @@ return new class extends Migration
         });
 
         // Composite FKs: client and employer must belong to same CRP
-        DB::statement('
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('
             ALTER TABLE wble_payroll_records
                 DROP CONSTRAINT IF EXISTS wble_payroll_records_client_id_foreign,
                 ADD CONSTRAINT wble_payroll_records_client_id_crp_fk
                     FOREIGN KEY (client_id, crp_id)
                     REFERENCES clients(id, crp_id)
         ');
+        }
 
-        DB::statement('
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('
             ALTER TABLE wble_payroll_records
                 DROP CONSTRAINT IF EXISTS wble_payroll_records_wble_employer_id_foreign,
                 ADD CONSTRAINT wble_payroll_records_wble_employer_id_crp_fk
                     FOREIGN KEY (wble_employer_id, crp_id)
                     REFERENCES wble_employers(id, crp_id)
         ');
+        }
     }
 
     public function down(): void

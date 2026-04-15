@@ -44,7 +44,6 @@ class CryptographicAuditService
                 'entity_type' => $entityType,
                 'entity_id'   => $entityId,
                 'sequence'    => $sequence,
-                'timestamp'   => now()->toISOString(),
             ]);
 
             $currentHash    = hash('sha256', $previousHash . $payload);
@@ -112,7 +111,6 @@ class CryptographicAuditService
                 'entity_type' => $record->entity_type,
                 'entity_id'   => $record->entity_id,
                 'sequence'    => $record->sequence,
-                'timestamp'   => $record->created_at->toISOString(),
             ]);
 
             $expectedHash = hash('sha256', $previousHash . $payload);

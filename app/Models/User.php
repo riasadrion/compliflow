@@ -20,6 +20,7 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'role',
+        'is_super_admin',
         'mfa_secret_encrypted',
         'mfa_enabled',
         'mfa_verified_at',
@@ -40,6 +41,7 @@ class User extends Authenticatable implements FilamentUser
             'mfa_code_used_at'  => 'datetime',
             'password'          => 'hashed',
             'mfa_enabled'       => 'boolean',
+            'is_super_admin'    => 'boolean',
         ];
     }
 
@@ -47,7 +49,12 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->crp_id !== null;
+        return $this->is_super_admin || $this->crp_id !== null;
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return (bool) $this->is_super_admin;
     }
 
     // ── MFA helpers ────────────────────────────────────────────────────────
@@ -73,11 +80,28 @@ class User extends Authenticatable implements FilamentUser
         return $this->role === 'viewer';
     }
 
+    // ── Permission helpers ─────────────────────────────────────────────────
+
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isSuperAdmin()) return false; // super admin uses separate resources
+
+        return $this->role_id && $this->roleModel
+            ->permissions()
+            ->where('name', $permission)
+            ->exists();
+    }
+
     // ── Relationships ──────────────────────────────────────────────────────
 
     public function crp(): BelongsTo
     {
         return $this->belongsTo(Crp::class);
+    }
+
+    public function roleModel(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'role_id');
     }
 
     public function serviceLogs()

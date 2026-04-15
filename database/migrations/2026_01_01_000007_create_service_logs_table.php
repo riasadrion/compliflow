@@ -58,13 +58,15 @@ return new class extends Migration
         });
 
         // Composite FK: client must belong to same CRP
-        DB::statement('
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('
             ALTER TABLE service_logs
                 DROP CONSTRAINT IF EXISTS service_logs_client_id_foreign,
                 ADD CONSTRAINT service_logs_client_id_crp_fk
                     FOREIGN KEY (client_id, crp_id)
                     REFERENCES clients(id, crp_id)
         ');
+        }
     }
 
     public function down(): void

@@ -31,13 +31,15 @@ return new class extends Migration
 
         // Composite FK: authorization must belong to same CRP
         // authorizations(id, crp_id) unique constraint is set in the authorizations migration
-        DB::statement('
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('
             ALTER TABLE service_groups
                 DROP CONSTRAINT IF EXISTS service_groups_authorization_id_foreign,
                 ADD CONSTRAINT service_groups_authorization_id_crp_fk
                     FOREIGN KEY (authorization_id, crp_id)
                     REFERENCES authorizations(id, crp_id)
         ');
+        }
     }
 
     public function down(): void

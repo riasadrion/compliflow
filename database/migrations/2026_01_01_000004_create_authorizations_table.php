@@ -43,20 +43,20 @@ return new class extends Migration
             $table->unique(['authorization_number', 'crp_id']);
         });
 
-        // Composite FK: client must belong to same CRP
-        // clients(id, crp_id) unique constraint is set in the clients migration
-        DB::statement('
-            ALTER TABLE authorizations
-                DROP CONSTRAINT IF EXISTS authorizations_client_id_foreign,
-                ADD CONSTRAINT authorizations_client_id_crp_fk
-                    FOREIGN KEY (client_id, crp_id)
-                    REFERENCES clients(id, crp_id)
-        ');
+        if (DB::getDriverName() === 'pgsql') {
+            // Composite FK: client must belong to same CRP
+            DB::statement('
+                ALTER TABLE authorizations
+                    DROP CONSTRAINT IF EXISTS authorizations_client_id_foreign,
+                    ADD CONSTRAINT authorizations_client_id_crp_fk
+                        FOREIGN KEY (client_id, crp_id)
+                        REFERENCES clients(id, crp_id)
+            ');
 
-        // Composite unique on authorizations to support composite FK from service_groups
-        DB::statement('
-            ALTER TABLE authorizations ADD CONSTRAINT authorizations_id_crp_unique UNIQUE (id, crp_id)
-        ');
+            DB::statement('
+                ALTER TABLE authorizations ADD CONSTRAINT authorizations_id_crp_unique UNIQUE (id, crp_id)
+            ');
+        }
     }
 
     public function down(): void

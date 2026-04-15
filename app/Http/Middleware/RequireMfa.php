@@ -23,6 +23,11 @@ class RequireMfa
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
+        // Super admins bypass MFA — they manage tenants, not PHI
+        if ($user->isSuperAdmin()) {
+            return $next($request);
+        }
+
         // MFA not yet enabled — redirect to setup
         if (! $user->mfa_enabled) {
             if ($request->expectsJson()) {

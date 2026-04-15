@@ -38,6 +38,11 @@ class DatabaseServiceProvider extends ServiceProvider
 
     private function setCrpContext(): void
     {
+        // SET LOCAL is PostgreSQL-only; skip for SQLite (tests)
+        if (DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+
         if (! Auth::check()) {
             DB::statement("SET LOCAL app.current_crp_id = ''");
             return;

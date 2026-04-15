@@ -22,23 +22,35 @@ class AuditPhiAccess
     {
         $response = $next($request);
 
-        // Only log successful responses (2xx) — failed auth is logged separately
-        if ($response->isSuccessful() && auth()->check()) {
-            $user = auth()->user();
+        // Only log authenticated CRP users — not super admin, not unauthenticated
+        if (! auth()->check()) return $response;
+        $user = auth()->user();
+        if ($user->isSuperAdmin() || ! $user->crp_id) return $response;
 
-            $this->auditService->log(
-                crpId:      $user->crp_id,
-                userId:     $user->id,
-                action:     $this->resolveAction($request),
-                entityType: $this->resolveEntityType($request),
-                entityId:   $this->resolveEntityId($request),
-                metadata:   [
-                    'classification' => 'compliance',
-                    'method'         => $request->method(),
-                    'path'           => $request->path(),
-                ],
-            );
+        // Only log PHI resource paths — skip navigation, widgets, assets
+        $entityType = $this->resolveEntityType($request);
+        if (! $entityType) return $response;
+
+        // Only log successful responses
+        if (! $response->isSuccessful()) return $response;
+
+        // Skip Livewire polling (GET requests with X-Livewire header)
+        if ($request->header('X-Livewire') && $request->method() === 'GET') {
+            return $response;
         }
+
+        $this->auditService->log(
+            crpId:      $user->crp_id,
+            userId:     $user->id,
+            action:     $this->resolveAction($request),
+            entityType: $entityType,
+            entityId:   $this->resolveEntityId($request),
+            metadata:   [
+                'classification' => 'compliance',
+                'method'         => $request->method(),
+                'path'           => $request->path(),
+            ],
+        );
 
         return $response;
     }
@@ -59,11 +71,15 @@ class AuditPhiAccess
     {
         $path = $request->path();
 
-        if (str_contains($path, 'clients'))       return 'client';
-        if (str_contains($path, 'service-logs'))  return 'service_log';
-        if (str_contains($path, 'authorizations'))return 'authorization';
-        if (str_contains($path, 'pdf-export'))    return 'pdf_export';
-        if (str_contains($path, 'reports'))       return 'report';
+        if (str_contains($path, 'clients'))         return 'client';
+        if (str_contains($path, 'service-logs'))    return 'service_log';
+        if (str_contains($path, 'authorizations'))  return 'authorization';
+        if (str_contains($path, 'curricula'))       return 'curriculum';
+        if (str_contains($path, 'wble-payrolls'))   return 'wble_payroll';
+        if (str_contains($path, 'wble-placements')) return 'wble_placement';
+        if (str_contains($path, 'wble-employers'))  return 'wble_employer';
+        if (str_contains($path, 'pdf-export'))      return 'pdf_export';
+        if (str_contains($path, 'reports'))         return 'report';
 
         return null;
     }

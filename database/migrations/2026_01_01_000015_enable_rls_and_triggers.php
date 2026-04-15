@@ -7,6 +7,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::getDriverName() !== 'pgsql') {
+            return; // RLS and triggers are PostgreSQL-only; skip for SQLite in tests
+        }
+
         // ─────────────────────────────────────────────────────────────
         // A. Enable Row-Level Security on all 13 PHI tables
         // ─────────────────────────────────────────────────────────────
