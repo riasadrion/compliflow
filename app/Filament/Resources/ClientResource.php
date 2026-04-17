@@ -18,6 +18,7 @@ use Filament\Actions\ViewAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
@@ -195,6 +196,24 @@ class ClientResource extends Resource
                         'eligible'             => 'Eligible',
                         'ineligible'           => 'Ineligible',
                     ]),
+
+                Filter::make('missing_documents')
+                    ->label('Missing Documents')
+                    ->query(fn ($query) => $query->where(function ($q) {
+                        $q->whereNull('proof_of_disability_received_at')
+                          ->orWhereNull('iep_received_at')
+                          ->orWhereNull('consent_form_signed_at');
+                    }))
+                    ->toggle(),
+
+                Filter::make('documents_complete')
+                    ->label('Documents Complete')
+                    ->query(fn ($query) => $query
+                        ->whereNotNull('proof_of_disability_received_at')
+                        ->whereNotNull('iep_received_at')
+                        ->whereNotNull('consent_form_signed_at')
+                    )
+                    ->toggle(),
             ])
             ->actions([
                 EditAction::make(),
