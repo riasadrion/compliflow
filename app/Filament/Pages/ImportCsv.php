@@ -4,20 +4,18 @@ namespace App\Filament\Pages;
 
 use App\Services\CsvImportService;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Schema;
 
-class ImportCsv extends Page implements HasForms
+class ImportCsv extends Page
 {
-    use InteractsWithForms;
 
     protected string $view = 'filament.pages.import-csv';
 
     protected static string|\BackedEnum|null $navigationIcon  = 'heroicon-o-arrow-up-tray';
     protected static ?string $navigationLabel = 'CSV Import';
+    protected static ?string $title = 'CSV Import';
     protected static string|\UnitEnum|null $navigationGroup = 'Tools';
     protected static ?int    $navigationSort  = 1;
 
@@ -36,9 +34,9 @@ class ImportCsv extends Page implements HasForms
         $this->form->fill();
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 FileUpload::make('csv_file')
                     ->label('CSV File')

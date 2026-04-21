@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CrpResource\Pages;
 use App\Models\Crp;
 use Filament\Forms\Components\TextInput;
+use Illuminate\Validation\Rule;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -39,7 +40,13 @@ class CrpResource extends Resource
                 ->schema([
                     TextInput::make('name')
                         ->required()
-                        ->maxLength(255),
+                        ->maxLength(255)
+                        ->rules(fn ($record) => [
+                            Rule::unique('crps', 'name')->ignore($record?->id),
+                        ])
+                        ->validationMessages([
+                            'unique' => 'A CRP with this name already exists.',
+                        ]),
 
                     TextInput::make('vendor_id')
                         ->label('Vendor ID')

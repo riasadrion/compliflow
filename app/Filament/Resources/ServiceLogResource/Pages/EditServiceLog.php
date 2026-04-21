@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ServiceLogResource\Pages;
 
 use App\Filament\Resources\ServiceLogResource;
+use App\Services\CompletenessValidatorService;
 use App\Services\CryptographicAuditService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -28,8 +29,19 @@ class EditServiceLog extends EditRecord
                     && ! $this->record->isLocked()
                     && in_array($user->role, ['admin', 'senior_counselor'])
                 )
-                ->requiresConfirmation()
                 ->action(function () use ($user) {
+                    $result = app(CompletenessValidatorService::class)->validate($this->record);
+
+                    if (! $result['valid']) {
+                        Notification::make()
+                            ->title('Cannot mark as ready — missing required fields')
+                            ->body(implode("\n", $result['errors']))
+                            ->danger()
+                            ->persistent()
+                            ->send();
+                        return;
+                    }
+
                     $this->record->update([
                         'report_status' => 'ready',
                         'ready_at'      => now(),

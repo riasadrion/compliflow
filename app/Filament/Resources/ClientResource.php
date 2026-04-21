@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Services\CryptographicAuditService;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -55,10 +56,11 @@ class ClientResource extends Resource
                         ->required()
                         ->maxLength(100),
 
-                    TextInput::make('dob')
+                    DatePicker::make('dob')
                         ->label('Date of Birth')
-                        ->placeholder('YYYY-MM-DD')
-                        ->required(),
+                        ->required()
+                        ->before('today')
+                        ->displayFormat('M j, Y'),
 
                     TextInput::make('ssn_last_four')
                         ->label('SSN Last 4')
@@ -85,7 +87,7 @@ class ClientResource extends Resource
                 ->schema([
                     TextInput::make('external_id')
                         ->label('External ID')
-                        ->helperText('ID from your external system (e.g. CSV import key)'),
+                        ->helperText('The client\'s ID in your existing system (e.g. case management software, spreadsheet, or state database). Used to match records during CSV imports and prevent duplicates. Leave blank if not applicable.'),
 
                     Select::make('eligibility_status')
                         ->options([

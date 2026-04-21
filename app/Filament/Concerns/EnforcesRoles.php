@@ -36,40 +36,40 @@ trait EnforcesRoles
         };
     }
 
+    protected static function resourcePermissionName(): string
+    {
+        return \Illuminate\Support\Str::plural(
+            \Illuminate\Support\Str::snake(class_basename(static::$model ?? ''))
+        );
+    }
+
     public static function canCreate(): bool
     {
-        // Derive resource name from model, e.g. Client -> clients
-        $resource = strtolower(class_basename(static::$model ?? '')) . 's';
-        return static::userCan("{$resource}.create");
+        return static::userCan(static::resourcePermissionName() . '.create');
     }
 
     public static function canEdit($record): bool
     {
-        $resource = strtolower(class_basename(static::$model ?? '')) . 's';
-        return static::userCan("{$resource}.edit");
+        return static::userCan(static::resourcePermissionName() . '.edit');
     }
 
     public static function canDelete($record): bool
     {
-        $resource = strtolower(class_basename(static::$model ?? '')) . 's';
-        return static::userCan("{$resource}.delete");
+        return static::userCan(static::resourcePermissionName() . '.delete');
     }
 
     public static function canDeleteAny(): bool
     {
-        $resource = strtolower(class_basename(static::$model ?? '')) . 's';
-        return static::userCan("{$resource}.delete");
+        return static::userCan(static::resourcePermissionName() . '.delete');
     }
 
     public static function canView($record): bool
     {
-        $resource = strtolower(class_basename(static::$model ?? '')) . 's';
-        return static::userCan("{$resource}.view");
+        return static::userCan(static::resourcePermissionName() . '.view');
     }
 
     public static function canViewAny(): bool
     {
-        $resource = strtolower(class_basename(static::$model ?? '')) . 's';
-        return static::userCan("{$resource}.view");
+        return static::userCan(static::resourcePermissionName() . '.view');
     }
 }

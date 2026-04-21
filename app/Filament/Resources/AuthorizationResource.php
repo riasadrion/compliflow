@@ -9,6 +9,7 @@ use App\Models\Client;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Illuminate\Validation\Rule;
 use Filament\Schemas\Components\Section;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -59,13 +60,24 @@ class AuthorizationResource extends Resource
                     TextInput::make('authorization_number')
                         ->label('Authorization #')
                         ->required()
-                        ->maxLength(100),
+                        ->maxLength(100)
+                        ->rules(fn ($record) => [
+                            Rule::unique('authorizations', 'authorization_number')
+                                ->where('crp_id', auth()->user()->crp_id)
+                                ->ignore($record?->id),
+                        ])
+                        ->validationMessages([
+                            'unique' => 'This authorization number already exists in your organization. Use a different number or edit the existing authorization.',
+                        ]),
 
-                    TextInput::make('service_code')
+                    Select::make('service_code')
                         ->label('Service Code')
-                        ->required()
-                        ->placeholder('963X, 964X, 122X')
-                        ->maxLength(20),
+                        ->options([
+                            '963X' => '963X',
+                            '964X' => '964X',
+                            '122X' => '122X',
+                        ])
+                        ->required(),
 
                     TextInput::make('service_type')
                         ->label('Service Type')
@@ -93,7 +105,11 @@ class AuthorizationResource extends Resource
                         ->label('Units Used')
                         ->numeric()
                         ->default(0)
-                        ->minValue(0),
+                        ->minValue(0)
+                        ->rules(fn ($get) => ['lte:' . ($get('authorized_units') ?: 99999)])
+                        ->validationMessages([
+                            'lte' => 'Units used cannot exceed authorized units.',
+                        ]),
                 ]),
 
             Section::make('VRC & Office')

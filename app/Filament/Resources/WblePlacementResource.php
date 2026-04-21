@@ -35,8 +35,7 @@ class WblePlacementResource extends Resource
 
     public static function canAccess(): bool
     {
-        $user = auth()->user();
-        return $user && ! $user->isSuperAdmin() && $user->crp_id !== null;
+        return false; // hidden until Week 3
     }
 
     public static function form(Schema $schema): Schema

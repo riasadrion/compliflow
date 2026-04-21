@@ -41,6 +41,7 @@ class UserResource extends Resource
                         ->label('CRP')
                         ->options(fn () => Crp::orderBy('name')->pluck('name', 'id'))
                         ->searchable()
+                        ->preload()
                         ->required(fn ($get) => ! $get('is_super_admin')),
 
                     Select::make('role')
@@ -138,6 +139,11 @@ class UserResource extends Resource
                 EditAction::make(),
             ])
             ->defaultSort('name', 'asc');
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()->where('is_super_admin', false);
     }
 
     public static function getPages(): array

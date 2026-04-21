@@ -8,6 +8,8 @@ use App\Models\Authorization;
 use App\Models\Client;
 use App\Models\ServiceLog;
 use App\Services\CurriculumBlockingService;
+use App\Services\DeadlineAlertService;
+use App\Services\RulesEngineService;
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -206,6 +208,57 @@ class ServiceLogResource extends Resource
                         'approved'  => 'success',
                         'rejected'  => 'danger',
                         default     => 'gray',
+                    }),
+
+                TextColumn::make('deadline_status')
+                    ->label('Deadline')
+                    ->getStateUsing(fn (ServiceLog $record): string => match (
+                        app(DeadlineAlertService::class)->getStatus($record)
+                    ) {
+                        'overdue' => 'Overdue',
+                        'warning' => app(DeadlineAlertService::class)->getDaysRemaining($record) . 'd left',
+                        'on_track' => app(DeadlineAlertService::class)->getDaysRemaining($record) . 'd left',
+                        default   => 'Submitted',
+                    })
+                    ->badge()
+                    ->color(fn (ServiceLog $record): string => match (
+                        app(DeadlineAlertService::class)->getStatus($record)
+                    ) {
+                        'overdue'  => 'danger',
+                        'warning'  => 'warning',
+                        'on_track' => 'success',
+                        default    => 'gray',
+                    }),
+
+                TextColumn::make('flags')
+                    ->label('Flags')
+                    ->getStateUsing(function (ServiceLog $record): string {
+                        $result = app(RulesEngineService::class)->evaluateLogs($record->crp_id);
+                        $logResult = $result[$record->id] ?? null;
+
+                        if (! $logResult || $logResult['status'] === RulesEngineService::STATUS_READY) {
+                            return 'OK';
+                        }
+
+                        $flagLabels = array_map(fn ($f) => match ($f['flag']) {
+                            'missing_authorization' => 'No Auth',
+                            'missing_signature'     => 'No Signature',
+                            'missing_payroll'       => 'No Payroll',
+                            default                 => $f['flag'],
+                        }, $logResult['flags']);
+
+                        return implode(', ', $flagLabels);
+                    })
+                    ->badge()
+                    ->color(fn (ServiceLog $record): string => match (true) {
+                        $record->report_status === 'submitted',
+                        $record->report_status === 'approved' => 'gray',
+                        default => (function () use ($record) {
+                            $result = app(RulesEngineService::class)->evaluateLogs($record->crp_id);
+                            return ($result[$record->id]['status'] ?? 'READY') === 'BLOCKED'
+                                ? 'danger'
+                                : 'success';
+                        })(),
                     }),
 
                 TextColumn::make('locked_at')
