@@ -40,9 +40,12 @@ class ImportCsv extends Page
             ->schema([
                 FileUpload::make('csv_file')
                     ->label('CSV File')
+                    ->disk('public')
+                    ->directory('csv-imports')
                     ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv', 'application/vnd.ms-excel'])
-                    ->maxSize(5120) // 5MB
+                    ->maxSize(5120)
                     ->required()
+                    ->validationAttribute('CSV file')
                     ->helperText('Upload a CSV with columns: client_id, first_name, last_name, dob, auth_number, auth_start, auth_end, service_code, service_date, start_time, end_time, hours, form_type'),
             ])
             ->statePath('data');
@@ -50,21 +53,54 @@ class ImportCsv extends Page
 
     public function import(): void
     {
-        $this->form->validate();
+        $raw = $this->data['csv_file'] ?? null;
 
-        $path = $this->data['csv_file'];
+        if (is_array($raw)) {
+            $values = array_values($raw);
+            $value = $values[0] ?? null;
+        } else {
+            $value = $raw;
+        }
 
-        // FileUpload stores the path — get the temp file
-        $file = new \Illuminate\Http\UploadedFile(
-            storage_path('app/public/' . $path),
-            basename($path),
-            null,
-            null,
-            true
-        );
+        if (empty($value)) {
+            Notification::make()
+                ->title('Please upload a CSV file before importing.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        // Resolve the absolute path — handle TemporaryUploadedFile, stored path, or raw path
+        $absolutePath = null;
+
+        if ($value instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+            $absolutePath = $value->getRealPath();
+        } elseif (is_string($value)) {
+            // Try public disk first (if Filament stored it there)
+            $publicPath = \Illuminate\Support\Facades\Storage::disk('public')->path($value);
+            if (file_exists($publicPath)) {
+                $absolutePath = $publicPath;
+            } else {
+                // Fall back to Livewire temp storage
+                $tmpPath = storage_path('app/private/livewire-tmp/' . basename($value));
+                if (file_exists($tmpPath)) {
+                    $absolutePath = $tmpPath;
+                } elseif (file_exists($value)) {
+                    $absolutePath = $value;
+                }
+            }
+        }
+
+        if (! $absolutePath || ! file_exists($absolutePath)) {
+            Notification::make()
+                ->title('Uploaded file not found. Please re-upload and try again.')
+                ->danger()
+                ->send();
+            return;
+        }
 
         try {
-            $result = app(CsvImportService::class)->import($file);
+            $result = app(CsvImportService::class)->importFromPath($absolutePath);
             $this->result = $result;
 
             Notification::make()

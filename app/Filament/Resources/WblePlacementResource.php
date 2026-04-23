@@ -30,12 +30,14 @@ class WblePlacementResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-briefcase';
     protected static ?string $navigationLabel = 'Placements';
+    protected static ?string $modelLabel = 'WBLE Placement';
+    protected static ?string $pluralModelLabel = 'WBLE Placements';
     protected static string|\UnitEnum|null $navigationGroup = 'WBLE';
     protected static ?int $navigationSort = 2;
 
     public static function canAccess(): bool
     {
-        return false; // hidden until Week 3
+        $user = auth()->user(); return $user && ! $user->isSuperAdmin() && $user->crp_id !== null;
     }
 
     public static function form(Schema $schema): Schema

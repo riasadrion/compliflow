@@ -32,12 +32,14 @@ class WblePayrollResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-banknotes';
     protected static ?string $navigationLabel = 'Payroll Records';
+    protected static ?string $modelLabel = 'WBLE Payroll Record';
+    protected static ?string $pluralModelLabel = 'WBLE Payroll Records';
     protected static string|\UnitEnum|null $navigationGroup = 'WBLE';
     protected static ?int $navigationSort = 3;
 
     public static function canAccess(): bool
     {
-        return false; // hidden until Week 3
+        $user = auth()->user(); return $user && ! $user->isSuperAdmin() && $user->crp_id !== null;
     }
 
     public static function form(Schema $schema): Schema

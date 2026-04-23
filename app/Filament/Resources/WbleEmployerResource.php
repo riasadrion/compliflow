@@ -27,12 +27,14 @@ class WbleEmployerResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-storefront';
     protected static ?string $navigationLabel = 'WBLE Employers';
+    protected static ?string $modelLabel = 'WBLE Employer';
+    protected static ?string $pluralModelLabel = 'WBLE Employers';
     protected static string|\UnitEnum|null $navigationGroup = 'WBLE';
     protected static ?int $navigationSort = 1;
 
     public static function canAccess(): bool
     {
-        return false; // hidden until Week 3
+        $user = auth()->user(); return $user && ! $user->isSuperAdmin() && $user->crp_id !== null;
     }
 
     public static function form(Schema $schema): Schema
