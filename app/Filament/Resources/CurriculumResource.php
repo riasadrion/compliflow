@@ -52,7 +52,7 @@ class CurriculumResource extends Resource
                     Select::make('service_code')
                         ->label('Service Code')
                         ->options([
-                            '121X' => '121X — Individual Pre-ETS',
+                            '127X' => '127X — Individual Pre-ETS',
                             '963X' => '963X — Pre-ETS',
                             '964X' => '964X — WBLE',
                             '122X' => '122X — Counseling & Guidance',
@@ -149,7 +149,7 @@ class CurriculumResource extends Resource
                 SelectFilter::make('service_code')
                     ->label('Service Code')
                     ->options([
-                        '121X' => '121X',
+                        '127X' => '127X',
                         '963X' => '963X',
                         '964X' => '964X',
                         '122X' => '122X',

@@ -7,10 +7,11 @@ use App\Models\ServiceLog;
 /**
  * Validates a service log has all required fields before it can be marked Ready.
  *
- * VR-121X (963X): client, dob, service_date, service_code, counselor, auth number,
- *                 auth end date, notes (min 50 chars), curriculum_used
- * VR-122X (964X): all 121X fields + career_interest_area, assessment_tools, activities_completed
- * 122X:           client, dob, service_date, service_code, counselor, auth number, auth end date, notes
+ * 127X:  client, dob, service_date, service_code, counselor, auth number,
+ *         auth end date, notes (min 50 chars), curriculum_used
+ * 963X:   same as 127X
+ * 964X:   all 127X fields + career_interest_area, assessment_tools, activities_completed
+ * 122X:   client, dob, service_date, service_code, counselor, auth number, auth end date, notes
  */
 class CompletenessValidatorService
 {

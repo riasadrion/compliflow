@@ -51,6 +51,7 @@ class WbleEmployerResource extends Resource
 
                     TextInput::make('employer_address')
                         ->label('Address')
+                        ->required()
                         ->maxLength(255)
                         ->columnSpanFull(),
 

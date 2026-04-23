@@ -87,7 +87,7 @@ class ServiceLogResource extends Resource
                     Select::make('form_type')
                         ->label('Form Type')
                         ->options([
-                            '121X' => '121X — Individual Pre-ETS',
+                            '127X' => '127X — Individual Pre-ETS',
                             '963X' => '963X — Pre-ETS Service Log',
                             '964X' => '964X — WBLE Service Log',
                             '122X' => '122X — Counseling & Guidance',
@@ -97,7 +97,7 @@ class ServiceLogResource extends Resource
                     Select::make('service_code')
                         ->label('Service Code')
                         ->options([
-                            '121X' => '121X',
+                            '127X' => '127X',
                             '963X' => '963X',
                             '964X' => '964X',
                             '122X' => '122X',
@@ -287,7 +287,7 @@ class ServiceLogResource extends Resource
                 SelectFilter::make('form_type')
                     ->label('Form Type')
                     ->options([
-                        '121X' => '121X',
+                        '127X' => '127X',
                         '963X' => '963X',
                         '964X' => '964X',
                         '122X' => '122X',
