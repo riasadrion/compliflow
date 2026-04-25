@@ -25,6 +25,8 @@ class User extends Authenticatable implements FilamentUser
         'mfa_enabled',
         'mfa_verified_at',
         'mfa_code_used_at',
+        'phone',
+        'title',
     ];
 
     protected $hidden = [

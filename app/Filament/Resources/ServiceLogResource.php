@@ -9,20 +9,28 @@ use App\Models\Client;
 use App\Models\ServiceLog;
 use App\Services\CurriculumBlockingService;
 use App\Services\DeadlineAlertService;
+use App\Services\CryptographicAuditService;
+use App\Services\FormGenerationService;
 use App\Services\RulesEngineService;
 use App\Models\User;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -92,7 +100,8 @@ class ServiceLogResource extends Resource
                             '964X' => '964X — WBLE Service Log',
                             '122X' => '122X — Counseling & Guidance',
                         ])
-                        ->required(),
+                        ->required()
+                        ->live(),
 
                     Select::make('service_code')
                         ->label('Service Code')
@@ -149,7 +158,138 @@ class ServiceLogResource extends Resource
                         ->searchable(),
                 ]),
 
+            Section::make('Eligibility')
+                ->columns(1)
+                ->schema([
+                    Select::make('custom_fields.eligibility_type')
+                        ->label('Eligibility Status')
+                        ->options([
+                            'eligible'              => 'Eligible Student',
+                            'potentially_eligible'  => 'Potentially Eligible Student',
+                        ])
+                        ->default('eligible')
+                        ->required(),
+                ]),
+
+            // ── 127X-specific: Skills Assessment ──────────────────────────
+            Section::make('127X — Skills Assessment')
+                ->visible(fn ($get): bool => $get('form_type') === '127X')
+                ->columnSpanFull()
+                ->schema([
+                    Fieldset::make('Skill Ratings')
+                        ->schema(self::buildSkillFields())
+                        ->columns(2),
+
+                    Toggle::make('custom_fields.curriculum_approved')
+                        ->label('Workplace Readiness curriculum approved by District Office?'),
+
+                    Toggle::make('custom_fields.competency_demonstrated')
+                        ->label('Customer demonstrated increased competency in rated areas?'),
+
+                    Textarea::make('custom_fields.additional_comments')
+                        ->label('Additional Comments / Recommendations')
+                        ->rows(3)
+                        ->columnSpanFull(),
+                ]),
+
+            // ── 963X-specific: Pre-ETS Work Experience ────────────────────
+            Section::make('963X — Pre-ETS Work Experience')
+                ->visible(fn ($get): bool => $get('form_type') === '963X')
+                ->columnSpanFull()
+                ->columns(2)
+                ->schema([
+                    Textarea::make('custom_fields.employer_name_address')
+                        ->label('Employer-Based Work Experience Business Name & Address')
+                        ->rows(2)
+                        ->columnSpanFull(),
+                    DatePicker::make('custom_fields.work_start_date')
+                        ->label('Work Experience Start Date'),
+                    DatePicker::make('custom_fields.work_end_date')
+                        ->label('Anticipated Completion Date'),
+                    DatePicker::make('custom_fields.last_contact_date')
+                        ->label('Last Date of Contact (if dropped out)'),
+                    TextInput::make('custom_fields.work_schedule')
+                        ->label('Work Experience Schedule')
+                        ->columnSpanFull(),
+                    TextInput::make('custom_fields.total_hours_to_date')
+                        ->label('Total Hours Utilized to Date')
+                        ->numeric(),
+                ]),
+
+            // ── 964X-specific: WBLE Activities & Supports ─────────────────
+            Section::make('964X — WBLE Activities & Supports')
+                ->visible(fn ($get): bool => $get('form_type') === '964X')
+                ->columnSpanFull()
+                ->columns(2)
+                ->schema([
+                    Textarea::make('custom_fields.employer_name_address')
+                        ->label('Employer-Based Work Experience Business Name & Address')
+                        ->rows(2)
+                        ->columnSpanFull(),
+                    DatePicker::make('custom_fields.work_start_date')
+                        ->label('Work Experience Start Date'),
+                    DatePicker::make('custom_fields.work_end_date')
+                        ->label('Anticipated Completion Date'),
+                    DatePicker::make('custom_fields.last_contact_date')
+                        ->label('Last Date of Contact (if dropped out)'),
+                    TextInput::make('custom_fields.work_schedule')
+                        ->label('Work Experience Schedule'),
+                    TextInput::make('custom_fields.total_hours_to_date')
+                        ->label('Total Hours Utilized to Date')
+                        ->numeric(),
+
+                    Repeater::make('custom_fields.activities')
+                        ->label('Activity / Skill Development (up to 8)')
+                        ->simple(TextInput::make('value')->placeholder('Activity'))
+                        ->maxItems(8)
+                        ->columnSpanFull(),
+
+                    Repeater::make('custom_fields.supports')
+                        ->label('Support Provided / Outcome (up to 8)')
+                        ->simple(TextInput::make('value')->placeholder('Support'))
+                        ->maxItems(8)
+                        ->columnSpanFull(),
+                ]),
+
+            // ── 122X-specific: Counseling & Guidance ──────────────────────
+            Section::make('122X — Counseling & Guidance')
+                ->visible(fn ($get): bool => $get('form_type') === '122X')
+                ->columnSpanFull()
+                ->schema([
+                    Select::make('custom_fields.service_mode')
+                        ->label('Service Mode')
+                        ->options([
+                            'individual' => 'Individual',
+                            'group'      => 'Group',
+                        ])
+                        ->default('individual')
+                        ->required(),
+
+                    CheckboxList::make('custom_fields.services_delivered')
+                        ->label('Services Delivered (check all that apply)')
+                        ->options([
+                            'vocational_interest'        => 'Vocational Interest Inventory Results',
+                            'labor_market'               => 'Labor Market',
+                            'in_demand_industries'       => 'In-demand Industries and Occupations',
+                            'career_pathways'            => 'Identification of Career Pathways',
+                            'career_awareness'           => 'Career Awareness and Skill Development',
+                            'career_speakers'            => 'Career Speakers',
+                            'career_student_org'         => 'Career Student Organization',
+                            'one_stop_orientation'       => 'One Stop / DOL Orientation',
+                            'workforce_skills'           => 'Workforce Skills for Specific Jobs',
+                            'non_traditional_employment' => 'Non-traditional Employment Options',
+                        ])
+                        ->columns(2)
+                        ->columnSpanFull(),
+
+                    Textarea::make('custom_fields.narrative')
+                        ->label('Narrative — Student\'s Experience')
+                        ->rows(5)
+                        ->columnSpanFull(),
+                ]),
+
             Section::make('Notes')
+                ->columnSpanFull()
                 ->schema([
                     Textarea::make('notes')
                         ->label('Service Notes')
@@ -269,6 +409,16 @@ class ServiceLogResource extends Resource
                         $record->isLocked() ? '🔒' : '—'
                     ),
 
+                TextColumn::make('pdf_status')
+                    ->label('PDF')
+                    ->badge()
+                    ->getStateUsing(fn (ServiceLog $record): string =>
+                        app(FormGenerationService::class)->existingFor($record, $record->form_type)
+                            ? 'Generated'
+                            : 'Not yet'
+                    )
+                    ->color(fn (string $state): string => $state === 'Generated' ? 'success' : 'gray'),
+
                 TextColumn::make('user.name')
                     ->label('Counselor')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -294,6 +444,73 @@ class ServiceLogResource extends Resource
                     ]),
             ])
             ->actions([
+                Action::make('generate_pdf')
+                    ->label('Generate PDF')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('success')
+                    ->visible(fn (ServiceLog $record): bool =>
+                        ! app(FormGenerationService::class)->existingFor($record, $record->form_type)
+                        && in_array($record->report_status, ['draft', 'ready'])
+                    )
+                    ->requiresConfirmation()
+                    ->modalHeading('Generate PDF')
+                    ->modalDescription('Once generated, the PDF is final and cannot be regenerated. Continue?')
+                    ->modalSubmitActionLabel('Generate')
+                    ->action(function (ServiceLog $record) {
+                        try {
+                            $path = app(FormGenerationService::class)->generate($record, $record->form_type);
+
+                            Notification::make()
+                                ->title('PDF generated')
+                                ->body('Click "Download PDF" to retrieve it.')
+                                ->success()
+                                ->send();
+
+                            return response()->download($path)->deleteFileAfterSend(false);
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('PDF generation failed')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+
+                Action::make('download_pdf')
+                    ->label('Download PDF')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('info')
+                    ->visible(fn (ServiceLog $record): bool =>
+                        (bool) app(FormGenerationService::class)->existingFor($record, $record->form_type)
+                    )
+                    ->action(function (ServiceLog $record) {
+                        $existing = app(FormGenerationService::class)->existingFor($record, $record->form_type);
+
+                        if (! $existing || ! file_exists($existing->file_path)) {
+                            Notification::make()
+                                ->title('PDF file missing')
+                                ->body('The generated PDF could not be found on disk.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        app(CryptographicAuditService::class)->log(
+                            $record->crp_id,
+                            auth()->id(),
+                            'phi_export',
+                            ServiceLog::class,
+                            $record->id,
+                            [
+                                'form_type'      => $record->form_type,
+                                'pdf_hash'       => $existing->pdf_hash,
+                                'classification' => 'phi',
+                            ],
+                        );
+
+                        return response()->download($existing->file_path)->deleteFileAfterSend(false);
+                    }),
+
                 EditAction::make()
                     ->disabled(fn (ServiceLog $record): bool => $record->isLocked()),
                 ViewAction::make(),
@@ -309,6 +526,48 @@ class ServiceLogResource extends Resource
     public static function getRelationManagers(): array
     {
         return [];
+    }
+
+    /**
+     * Build the 14 skill fields for 127X — each gets a 1-4 level + free-text observations.
+     */
+    protected static function buildSkillFields(): array
+    {
+        $skills = [
+            'financial_literacy'  => 'Financial Literacy',
+            'independent_travel'  => 'Independent Travel',
+            'personal_appearance' => 'Personal Appearance',
+            'time_management'     => 'Time Management',
+            'communication'       => 'Communication',
+            'social_interaction'  => 'Social Interaction',
+            'attention_focus'     => 'Attention & Focus',
+            'problem_solving'     => 'Problem Solving',
+            'teamwork'            => 'Teamwork',
+            'job_seeking_skills'  => 'Job Seeking Skills',
+            'interview_skills'    => 'Interview Skills',
+            'computer_literacy'   => 'Computer Literacy',
+            'task_completion'     => 'Task Completion',
+            'other'               => 'Other',
+        ];
+
+        $fields = [];
+        foreach ($skills as $key => $label) {
+            $fields[] = Select::make("custom_fields.skills.{$key}.level")
+                ->label($label . ' — Progress Level')
+                ->options([
+                    1 => '1 — Does not yet meet standard',
+                    2 => '2 — Meets acceptable standard',
+                    3 => '3 — Approaching excellence',
+                    4 => '4 — Standard of excellence',
+                ])
+                ->placeholder('Not rated');
+
+            $fields[] = Textarea::make("custom_fields.skills.{$key}.notes")
+                ->label($label . ' — Observations')
+                ->rows(2);
+        }
+
+        return $fields;
     }
 
     public static function getPages(): array
