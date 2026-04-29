@@ -10,7 +10,10 @@ use App\Models\ServiceLog;
 use App\Services\CurriculumBlockingService;
 use App\Services\DeadlineAlertService;
 use App\Services\CryptographicAuditService;
-use App\Services\FormGenerationService;
+use App\Jobs\GenerateFormJob;
+use App\Models\GeneratedForm;
+use App\Services\PdfOverlayService;
+use App\Services\S3SecureStorageService;
 use App\Services\RulesEngineService;
 use App\Models\User;
 use Filament\Forms\Components\CheckboxList;
@@ -412,12 +415,18 @@ class ServiceLogResource extends Resource
                 TextColumn::make('pdf_status')
                     ->label('PDF')
                     ->badge()
-                    ->getStateUsing(fn (ServiceLog $record): string =>
-                        app(FormGenerationService::class)->existingFor($record, $record->form_type)
-                            ? 'Generated'
-                            : 'Not yet'
-                    )
-                    ->color(fn (string $state): string => $state === 'Generated' ? 'success' : 'gray'),
+                    ->getStateUsing(function (ServiceLog $record): string {
+                        $form = GeneratedForm::where('service_log_id', $record->id)
+                            ->where('form_type', strtoupper($record->form_type))
+                            ->first();
+                        return $form?->status ?? 'not generated';
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'completed'  => 'success',
+                        'processing' => 'warning',
+                        'failed'     => 'danger',
+                        default      => 'gray',
+                    }),
 
                 TextColumn::make('user.name')
                     ->label('Counselor')
@@ -448,50 +457,64 @@ class ServiceLogResource extends Resource
                     ->label('Generate PDF')
                     ->icon('heroicon-o-document-arrow-down')
                     ->color('success')
-                    ->visible(fn (ServiceLog $record): bool =>
-                        ! app(FormGenerationService::class)->existingFor($record, $record->form_type)
-                        && in_array($record->report_status, ['draft', 'ready'])
-                    )
+                    ->visible(function (ServiceLog $record): bool {
+                        $form = GeneratedForm::where('service_log_id', $record->id)
+                            ->where('form_type', strtoupper($record->form_type))
+                            ->first();
+                        return ! $form && in_array($record->report_status, ['draft', 'ready']);
+                    })
                     ->requiresConfirmation()
                     ->modalHeading('Generate PDF')
-                    ->modalDescription('Once generated, the PDF is final and cannot be regenerated. Continue?')
+                    ->modalDescription('Generation runs in the background. The PDF status will update when complete.')
                     ->modalSubmitActionLabel('Generate')
                     ->action(function (ServiceLog $record) {
-                        try {
-                            $path = app(FormGenerationService::class)->generate($record, $record->form_type);
+                        GenerateFormJob::dispatch($record->id, $record->form_type, auth()->id());
 
-                            Notification::make()
-                                ->title('PDF generated')
-                                ->body('Click "Download PDF" to retrieve it.')
-                                ->success()
-                                ->send();
+                        Notification::make()
+                            ->title('PDF generation queued')
+                            ->body('The PDF will appear once generation completes.')
+                            ->success()
+                            ->send();
+                    }),
 
-                            return response()->download($path)->deleteFileAfterSend(false);
-                        } catch (\Throwable $e) {
-                            Notification::make()
-                                ->title('PDF generation failed')
-                                ->body($e->getMessage())
-                                ->danger()
-                                ->send();
-                        }
+                Action::make('retry_pdf')
+                    ->label('Retry')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->visible(function (ServiceLog $record): bool {
+                        return GeneratedForm::where('service_log_id', $record->id)
+                            ->where('form_type', strtoupper($record->form_type))
+                            ->where('status', 'failed')
+                            ->exists();
+                    })
+                    ->requiresConfirmation()
+                    ->action(function (ServiceLog $record) {
+                        GenerateFormJob::dispatch($record->id, $record->form_type, auth()->id());
+
+                        Notification::make()
+                            ->title('Retry queued')
+                            ->success()
+                            ->send();
                     }),
 
                 Action::make('download_pdf')
                     ->label('Download PDF')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('info')
-                    ->visible(fn (ServiceLog $record): bool =>
-                        (bool) app(FormGenerationService::class)->existingFor($record, $record->form_type)
-                    )
+                    ->visible(function (ServiceLog $record): bool {
+                        return GeneratedForm::where('service_log_id', $record->id)
+                            ->where('form_type', strtoupper($record->form_type))
+                            ->where('status', 'completed')
+                            ->exists();
+                    })
                     ->action(function (ServiceLog $record) {
-                        $existing = app(FormGenerationService::class)->existingFor($record, $record->form_type);
+                        $existing = GeneratedForm::where('service_log_id', $record->id)
+                            ->where('form_type', strtoupper($record->form_type))
+                            ->where('status', 'completed')
+                            ->first();
 
-                        if (! $existing || ! file_exists($existing->file_path)) {
-                            Notification::make()
-                                ->title('PDF file missing')
-                                ->body('The generated PDF could not be found on disk.')
-                                ->danger()
-                                ->send();
+                        if (! $existing) {
+                            Notification::make()->title('PDF not ready yet')->danger()->send();
                             return;
                         }
 
@@ -508,7 +531,8 @@ class ServiceLogResource extends Resource
                             ],
                         );
 
-                        return response()->download($existing->file_path)->deleteFileAfterSend(false);
+                        $url = app(S3SecureStorageService::class)->presignedUrl($existing);
+                        return redirect()->away($url);
                     }),
 
                 EditAction::make()
@@ -520,7 +544,8 @@ class ServiceLogResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('service_date', 'desc');
+            ->defaultSort('service_date', 'desc')
+            ->poll('5s');
     }
 
     public static function getRelationManagers(): array
